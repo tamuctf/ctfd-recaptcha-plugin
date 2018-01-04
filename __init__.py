@@ -1,1 +1,1 @@
-from recaptcha import load
+from .recaptcha import load

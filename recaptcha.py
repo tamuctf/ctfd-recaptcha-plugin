@@ -1,6 +1,6 @@
 from flask import request, render_template
 from functools import wraps
-from config import config
+from .config import config
 import logging
 import requests
 import json
