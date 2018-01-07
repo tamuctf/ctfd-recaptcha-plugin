@@ -26,14 +26,21 @@ def load(app):
             except Exception as e:
                 raise ValueError("Given page of type '{0}' is not parsable be lxml.etree".format(type(page))) from e
 
-        # Iterate through all forms, but in reality there will only be one
+        # Insert the check box to the left of the submit button
+        # Iterate through all forms adn buttons, but in reality there will only be one
+        # unless the developer is doing a non-trivial custom theme
+        # in which case they will turn off the automatic insert feature
         for form in root.iter('form'):
-            form.append(etree.Element('div',
-                attrib = {
-                    'class': 'g-recaptcha',
-                    'data-sitekey': app.config['RECAPTCHA_SECRET']
-                }
-            ))
+            for child in form.iterchildren():
+                for button in child.xpath('.//button[@type="submit"]'):
+                    button.addprevious(
+                        etree.Element('div',
+                            attrib = {
+                                'class': 'g-recaptcha float-left',
+                                'data-sitekey': app.config['RECAPTCHA_SECRET']
+                            }
+                        )
+                    )
 
         for head in root.iter('head'):
             head.append(etree.Element('script',
