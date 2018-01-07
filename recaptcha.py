@@ -1,5 +1,5 @@
 from flask import request, render_template
-from functools import wraps, lru_cache
+from functools import wraps
 from .config import config
 from lxml import etree
 import logging
@@ -11,20 +11,38 @@ import json
 
 logging.basicConfig(level=logging.DEBUG)
 
+def singleton_cache(func):
+    """Stores a single return value and reevaluates if the args change"""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        null = object() # A special value because None is a valid return
+        cache = null
+        cache_args = null
+
+        if cache is null or cache_args != (args, kwargs):
+            try:
+                cache = func(*args, **kwargs)
+                cache_args = (args, kwargs)
+
+            # On failure unset the cache
+            except:
+                cache = null
+                cache_args = null
+                raise
+
+        return cache
+    return wrapper
+
 def load(app):
     config(app)
 
-    @lru_cache(maxsize=8)
+    @singleton_cache
     def insert_tags(page):
         if isinstance(page, etree._ElementTree):
             root = page
-        elif isinstance(page, str) or isinstance(page, bytes):
-            root = etree.fromstring(page, etree.HTMLParser())
         else:
-            try:
-                root = etree.parse(page, etree.HTMLParser())
-            except Exception as e:
-                raise ValueError("Given page of type '{0}' is not parsable be lxml.etree".format(type(page))) from e
+            root = etree.fromstring(page, etree.HTMLParser())
 
         # Insert the check box to the left of the submit button
         # Iterate through all forms adn buttons, but in reality there will only be one
