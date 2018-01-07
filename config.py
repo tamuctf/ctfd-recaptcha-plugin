@@ -1,3 +1,5 @@
+from os import environ
+
 '''
 VERIFY_REMOTE_IP should be True if you want to include the client ip address in the verification step.
 '''
@@ -6,8 +8,9 @@ VERIFY_REMOTE_IP = False
 def config(app):
     '''
     RECAPTCHA_SECRET is the secret key provided to you by Google for reCaptcha
+    You may either set the RECAPTCHA_SECRET env variable or save it here in this file
     '''
-    app.config['RECAPTCHA_SECRET'] = 'YOUR_SECRET_HERE'
+    app.config['RECAPTCHA_SECRET'] = environ.get('RECAPTCHA_SECRET', 'INVALID_SECRET')
 
     '''
     RECAPTCHA_INSERT_TAGS determines if the plugin should automatically attempt to insert tags (i.e. the script and check box)
