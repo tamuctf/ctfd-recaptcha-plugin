@@ -6,43 +6,20 @@ import logging
 import requests
 import json
 
-#HEAD: <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-#FORM:  <div class="g-recaptcha" data-sitekey="your_site_key"></div>
-
 logging.basicConfig(level=logging.DEBUG)
-
-def singleton_cache(func):
-    """Stores a single return value and reevaluates if the args change"""
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        null = object() # A special value because None is a valid return
-        cache = null
-        cache_args = null
-
-        if cache is null or cache_args != (args, kwargs):
-            try:
-                cache = func(*args, **kwargs)
-                cache_args = (args, kwargs)
-
-            # On failure unset the cache
-            except:
-                cache = null
-                cache_args = null
-                raise
-
-        return cache
-    return wrapper
 
 def load(app):
     config(app)
 
-    @singleton_cache
     def insert_tags(page):
         if isinstance(page, etree._ElementTree):
             root = page
         else:
-            root = etree.fromstring(page, etree.HTMLParser())
+            try:
+                root = etree.fromstring(page, etree.HTMLParser())
+            except:
+                # We couldn't parse it (e.g. it is a Response object) so just pass it through
+                return page
 
         # Insert the check box to the left of the submit button
         # Iterate through all forms adn buttons, but in reality there will only be one
@@ -72,6 +49,12 @@ def load(app):
 
         return etree.tostring(root, method='html')
 
+    try:
+        from functools import lru_cache
+        insert_tags = lru_cache(maxsize=8)(insert_tags)
+    except ImportError:
+        pass
+
     def insert_tags_decorator(view_func):
         @wraps(view_func)
         def wrapper(*args, **kwargs):
@@ -100,7 +83,7 @@ def load(app):
                         logging.debug("Got reCaptcha response: {}".format(verify))
                         if 'error-codes' in verify and verify['error-codes']:
                             bad_request = True
-                            logging.error("Google reCaptcha returned error codes {:s}".format(verify['error-codes']))
+                            logging.error("Google reCaptcha returned error codes {}".format(verify['error-codes']))
                         elif verify['success']:
                             logging.debug("{} is human".format(request.form['name']))
                             return register_func(*args, **kwargs)
