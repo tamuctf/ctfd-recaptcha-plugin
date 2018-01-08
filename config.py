@@ -13,6 +13,13 @@ def config(app):
     app.config['RECAPTCHA_SECRET'] = environ.get('RECAPTCHA_SECRET', 'INVALID_SECRET')
 
     '''
+    RECAPTCHA_SITE_KEY is the public site key provided to you by Google for reCaptcha
+    Needed if `RECAPTCHA_INSERT_TAGS` is True
+    You may either set the RECAPTCHA_SITE_KEY env variable or save it here in this file
+    '''
+    app.config['RECAPTCHA_SITE_KEY'] = environ.get('RECAPTCHA_SITE_KEY', 'INVALID_SITE_KEY')
+
+    '''
     RECAPTCHA_INSERT_TAGS determines if the plugin should automatically attempt to insert tags (i.e. the script and check box)
     This works well if the registration template is not heavily modified, but set this to false if you want to control where the
     check box appears

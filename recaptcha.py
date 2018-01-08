@@ -55,7 +55,7 @@ def load(app):
                         etree.Element('div',
                             attrib = {
                                 'class': 'g-recaptcha float-left',
-                                'data-sitekey': app.config['RECAPTCHA_SECRET']
+                                'data-sitekey': app.config['RECAPTCHA_SITE_KEY']
                             }
                         )
                     )
