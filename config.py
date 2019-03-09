@@ -7,6 +7,11 @@ VERIFY_REMOTE_IP = False
 
 def config(app):
     '''
+    Determines whether or not to use the recaptcha feature. Set to False for debugging or otherwise turning off recaptcha.
+    '''
+    app.config['RECAPTCHA_ENABLED'] = environ.get('RECAPTCHA_ENABLED', "True").lower() == 'true'
+
+    '''
     RECAPTCHA_SECRET is the secret key provided to you by Google for reCaptcha
     You may either set the RECAPTCHA_SECRET env variable or save it here in this file
     '''

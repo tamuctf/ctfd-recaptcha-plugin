@@ -11,6 +11,9 @@ logging.basicConfig(level=logging.DEBUG)
 def load(app):
     config(app)
 
+    if not app.config['RECAPTCHA_ENABLED']:
+        return
+
     def insert_tags(page):
         if isinstance(page, etree._ElementTree):
             root = page
