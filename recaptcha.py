@@ -1,18 +1,35 @@
+from .config import config
 from flask import request, render_template
 from functools import wraps
-from .config import config
 from lxml import etree
-import logging
-import requests
 import json
+import logging
+import os
+import requests
 
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger('naumachia')
 
 def load(app):
     config(app)
 
     if not app.config['RECAPTCHA_ENABLED']:
         return
+
+    # Intitialize logging.
+    logger.setLevel(app.config.get('LOG_LEVEL', "INFO"))
+
+    log_dir = app.config.get('LOG_FOLDER', os.path.join(os.path.dirname(__file__), 'logs'))
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    log_file = os.path.join(log_dir, 'captcha.log')
+
+    if not os.path.exists(log_file):
+        open(log_file, 'a').close()
+
+    handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=10000)
+    logger.addHandler(handler)
+    logger.propagate = 0
 
     def insert_tags(page):
         if isinstance(page, etree._ElementTree):
@@ -28,17 +45,19 @@ def load(app):
         # Iterate through all forms adn buttons, but in reality there will only be one
         # unless the developer is doing a non-trivial custom theme
         # in which case they will turn off the automatic insert feature
+        inserted_div, inserted_script = False, False
         for form in root.iter('form'):
-            for child in form.iterchildren():
-                for button in child.xpath('.//button[@type="submit"]'):
-                    button.addprevious(
-                        etree.Element('div',
-                            attrib = {
-                                'class': 'g-recaptcha float-left',
-                                'data-sitekey': app.config['RECAPTCHA_SITE_KEY']
-                            }
-                        )
+            for button in form.xpath('.//button[@type="submit"] | .//input[@type="submit"]'):
+                button.addprevious(
+                    etree.Element('div',
+                        attrib = {
+                            'class': 'g-recaptcha float-left',
+                            'data-sitekey': app.config['RECAPTCHA_SITE_KEY']
+                        }
                     )
+                )
+                logger.debug("Inserted captcha checkbox element into page")
+                inserted_div = True
 
         for head in root.iter('head'):
             head.append(etree.Element('script',
@@ -48,7 +67,11 @@ def load(app):
                     'defer': 'true'
                 }
             ))
+            logger.debug("Inserted captcha script tag into page head")
+            inserted_script = True
 
+        if not inserted_div and inserted_script:
+            logger.error('Failed to insert capctha elements into page: inserted_div={!s}, inserted_script={!s}'.format(inserted_div, inserted_script))
 
         return etree.tostring(root, method='html')
 
@@ -79,20 +102,20 @@ def load(app):
                     }
                     request_url = app.config['RECAPTCHA_VERIFY_URL'].format(**params)
                     verify_reponse = requests.post(request_url)
-                    logging.debug("Sending reCaptcha verification request: {}".format(request_url))
+                    logger.debug("Sending reCaptcha verification request: {}".format(request_url))
 
                     if verify_reponse.ok:
                         verify =  json.loads(verify_reponse.text)
-                        logging.debug("Got reCaptcha response: {}".format(verify))
+                        logger.debug("Got reCaptcha response: {}".format(verify))
                         if 'error-codes' in verify and verify['error-codes']:
                             bad_request = True
-                            logging.error("Google reCaptcha returned error codes {}".format(verify['error-codes']))
+                            logger.error("Google reCaptcha returned error codes {}".format(verify['error-codes']))
                         elif verify['success']:
-                            logging.debug("{} is human".format(request.form['name']))
+                            logger.debug("{} is human".format(request.form['name']))
                             return register_func(*args, **kwargs)
                     else:
                         bad_request = True
-                        logging.error("Google reCaptcha request failed with code {}".format(verify_response.status_code))
+                        logger.error("Google reCaptcha request failed with code {}".format(verify_response.status_code))
 
                 if bad_request:
                     errors.append("Google reCaptcha is currently unavailable. Please try again later")
