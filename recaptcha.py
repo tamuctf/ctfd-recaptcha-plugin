@@ -3,10 +3,8 @@ from .providers import VerificationError, CaptchaProvider
 from flask import request, render_template
 from functools import wraps
 from lxml import etree
-import json
 import logging
 import os
-import requests
 
 logger = logging.getLogger('captcha')
 
@@ -32,7 +30,7 @@ def load(app):
     logger.addHandler(handler)
     logger.propagate = 0
 
-    provider = CaptchaProvider.parse(app.config['CAPTCHA_PROVIDER'])(app.config['CAPTCHA_SECRET'], app.config['CAPTCHA_VERIFY_REMOTE_IP'])
+    provider = CaptchaProvider.parse(app.config['CAPTCHA_PROVIDER'])(app.config['CAPTCHA_SITE_KEY'], app.config['CAPTCHA_SECRET'], app.config['CAPTCHA_VERIFY_REMOTE_IP'])
 
     def insert_tags(page):
         if isinstance(page, etree._ElementTree):
@@ -51,25 +49,12 @@ def load(app):
         inserted_div, inserted_script = False, False
         for form in root.iter('form'):
             for button in form.xpath('.//button[@type="submit"] | .//input[@type="submit"]'):
-                button.addprevious(
-                    etree.Element('div',
-                        attrib = {
-                            'class': 'g-recaptcha float-left',
-                            'data-sitekey': app.config['CAPTCHA_SITE_KEY']
-                        }
-                    )
-                )
+                button.addprevious(provider.challenge_tag())
                 logger.debug("Inserted captcha checkbox element into page")
                 inserted_div = True
 
         for head in root.iter('head'):
-            head.append(etree.Element('script',
-                attrib = {
-                    'src': 'https://www.google.com/recaptcha/api.js',
-                    'async': 'true',
-                    'defer': 'true'
-                }
-            ))
+            head.append(provider.script_tag())
             logger.debug("Inserted captcha script tag into page head")
             inserted_script = True
 
@@ -112,7 +97,6 @@ def load(app):
                         errors=errors,
                         name=request.form['name'],
                         email=request.form['email'],
-                        password=request.form['password']
                     )
             return register_func(*args, **kwargs)
 
