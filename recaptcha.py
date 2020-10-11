@@ -1,4 +1,5 @@
 from .config import config
+from .providers import VerificationError, CaptchaProvider
 from flask import request, render_template
 from functools import wraps
 from lxml import etree
@@ -7,12 +8,12 @@ import logging
 import os
 import requests
 
-logger = logging.getLogger('naumachia')
+logger = logging.getLogger('captcha')
 
 def load(app):
     config(app)
 
-    if not app.config['RECAPTCHA_ENABLED']:
+    if not app.config['CAPTCHA_ENABLED']:
         return
 
     # Intitialize logging.
@@ -30,6 +31,8 @@ def load(app):
     handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=10000)
     logger.addHandler(handler)
     logger.propagate = 0
+
+    provider = CaptchaProvider.parse(app.config['CAPTCHA_PROVIDER'])(app.config['CAPTCHA_SECRET'], app.config['CAPTCHA_VERIFY_REMOTE_IP'])
 
     def insert_tags(page):
         if isinstance(page, etree._ElementTree):
@@ -52,7 +55,7 @@ def load(app):
                     etree.Element('div',
                         attrib = {
                             'class': 'g-recaptcha float-left',
-                            'data-sitekey': app.config['RECAPTCHA_SITE_KEY']
+                            'data-sitekey': app.config['CAPTCHA_SITE_KEY']
                         }
                     )
                 )
@@ -75,6 +78,7 @@ def load(app):
 
         return etree.tostring(root, method='html')
 
+    # Attempt to add an LRU cache to the insert function. If not available in the current runtime, continue.
     try:
         from functools import lru_cache
         insert_tags = lru_cache(maxsize=8)(insert_tags)
@@ -93,48 +97,28 @@ def load(app):
         def wrapper(*args, **kwargs):
             if request.method == 'POST':
                 errors = []
-                bad_request = False
-                if 'g-recaptcha-response' in request.form and request.form['g-recaptcha-response']:
-                    params = {
-                        'secret': app.config['RECAPTCHA_SECRET'],
-                        'response': request.form['g-recaptcha-response'],
-                        'remoteip':  request.remote_addr
-                    }
-                    request_url = app.config['RECAPTCHA_VERIFY_URL'].format(**params)
-                    verify_reponse = requests.post(request_url)
-                    logger.debug("Sending reCaptcha verification request: {}".format(request_url))
+                verified = None
+                try:
+                    verified = provider.verify(request.form, request.remote_addr)
+                except VerificationError as e:
+                    errors.append("Captcha service is currently unavailable. Please try again later")
 
-                    if verify_reponse.ok:
-                        verify =  json.loads(verify_reponse.text)
-                        logger.debug("Got reCaptcha response: {}".format(verify))
-                        if 'error-codes' in verify and verify['error-codes']:
-                            bad_request = True
-                            logger.error("Google reCaptcha returned error codes {}".format(verify['error-codes']))
-                        elif verify['success']:
-                            logger.debug("{} is human".format(request.form['name']))
-                            return register_func(*args, **kwargs)
-                    else:
-                        bad_request = True
-                        logger.error("Google reCaptcha request failed with code {}".format(verify_response.status_code))
+                if verified is False:
+                    errors.append("Please check the captcha box to verify you are human")
 
-                if bad_request:
-                    errors.append("Google reCaptcha is currently unavailable. Please try again later")
-                else:
-                    errors.append("Please check the reCaptcha box to verify you are human")
-
-                return render_template(
-                    'register.html',
-                    errors=errors,
-                    name=request.form['name'],
-                    email=request.form['email'],
-                    password=request.form['password']
-                )
-            else:
-                return register_func(*args, **kwargs)
+                if not verified:
+                    return render_template(
+                        'register.html',
+                        errors=errors,
+                        name=request.form['name'],
+                        email=request.form['email'],
+                        password=request.form['password']
+                    )
+            return register_func(*args, **kwargs)
 
         return wrapper
 
     app.view_functions['auth.register'] = register_decorator(app.view_functions['auth.register'])
 
-    if app.config['RECAPTCHA_INSERT_TAGS']:
+    if app.config['CAPTCHA_INSERT_TAGS']:
         app.view_functions['auth.register'] = insert_tags_decorator(app.view_functions['auth.register'])
