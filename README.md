@@ -18,9 +18,9 @@ A plugin which adds the [Google reCaptcha v2](https://developers.google.com/reca
 
 Additional options, configurable either through environment variable or by editing `config.py` in this repo.
 
-* CAPTCHA_ENABLED (default: True): Determines whether or not to use the recaptcha feature. Set to False for debugging or otherwise turning off recaptcha.
-* CAPTCHA_PROVIDER (required): Configures which captcha provider to use. Options are reCaptcha and hCaptcha.
-* CAPTCHA_SECRET (required): The secret key provided to you by Google for reCaptcha.
-* CAPTCHA_SITE_KEY (required): The public site key provided to you by Google for reCaptcha.
-* CAPTCHA_INSERT_TAGS (default: True): Determines if the plugin should automatically attempt to insert tags (i.e. the script and check box). This works well if the registration template is not heavily modified, but set this to false if you want to control where the check box appears.
-* CAPTCHA_VERIFY_REMOTE_IP (default: False): Should be `True` if you want to include the client ip address in the verification step.
+* `CAPTCHA_ENABLED` (default: True): Determines whether or not to use the recaptcha feature. Set to False for debugging or otherwise turning off recaptcha.
+* `CAPTCHA_PROVIDER` (required): Configures which captcha provider to use. Options are reCaptcha and hCaptcha.
+* `CAPTCHA_SECRET` (required): The secret key provided to you by Google for reCaptcha.
+* `CAPTCHA_SITE_KEY` (required): The public site key provided to you by Google for reCaptcha.
+* `CAPTCHA_INSERT_TAGS` (default: True): Determines if the plugin should automatically attempt to insert tags (i.e. the script and check box). This works well if the registration template is not heavily modified, but set this to false if you want to control where the check box appears.
+* `CAPTCHA_VERIFY_REMOTE_IP` (default: False): Should be `True` if you want to include the client ip address in the verification step.
