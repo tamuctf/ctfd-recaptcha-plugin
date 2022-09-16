@@ -14,7 +14,7 @@ A plugin which adds the [Google reCaptcha v2](https://developers.google.com/reca
   * Set `CAPTCHA_PROVIDER` to `reCaptcha` or `hCaptcha` depending on your preferences.
   * Set `CAPTCHA_SECRET` and `CAPTCHA_SITE_KEY` your captcha keys.
 
->Note: If using environment variables don't forget to add from dotenv import load_dotenv and  load_dotenv() to config.py
+>Note: If using environment variables don't forget to add 'from dotenv import load_dotenv' and  'load_dotenv()' to config.py
 ### Options
 
 Additional options, configurable either through environment variable or by editing `config.py` in this repo.
