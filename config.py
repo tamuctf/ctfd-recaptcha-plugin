@@ -1,5 +1,6 @@
 from os import environ
 from enum import Enum
+from dotenv import load_dotenv
 
 def envvar(key, default=None):
     '''Return a variable from the environment, or the default. Includes a check for deprecated RECAPTCHA_* keys for back compat.'''
@@ -13,6 +14,7 @@ def envvar(key, default=None):
     return default
 
 def config(app):
+    load_dotenv()
     '''
     CAPTCHA_PROVIDER configures which captcha provider to use. Options are reCaptcha and hCaptcha.
     '''
